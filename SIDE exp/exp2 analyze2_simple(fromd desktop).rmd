@@ -1,0 +1,265 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Load - setup
+```{r,include=FALSE}
+library(dplyr)
+summarisedp=summarise
+library(ggplot2)
+library(lattice)
+library(plyr)
+library(Rmisc)
+library(stringr)
+library(tidyr)
+# library(rstan)
+# library(cowplot)
+library(plotly)
+library(wesanderson)
+```
+
+```{r setup}
+getwd()
+# knitr::opts_knit$set(root.dir = "/home/shulai/Documents/exp1_data0/0")
+# knitr::opts_knit$set(root.dir ="C:/Users/naszh/Google Drive (shulai@iu.edu)/IUB/Shiffrin Lab/mix_experiment/SIDE exp/sidedata")
+knitr::opts_knit$set(root.dir ="/home/shulai/Insync/shulai@iu.edu/Google Drive/IUB/Shiffrin Lab/mix_experiment/SIDE exp/sidedata")
+
+rn=c("Block","Trial","Old","testcdisgard","Setsize","Serpos","Lag",
+  "Response","Correctness","Side","RT","WhichProbe","Stimkind","FileCondi",
+  paste("prob",seq(1,8),sep="")) #old: 1 old 2:new
+# read.table("cmvman1048.txt",head=FALSE,sep="",fill = TRUE,col.names = rn)
+```
+
+# Load data
+
+```{r}
+d = read.csv("Grand_data.csv")
+```
+
+## clean_funcall
+```{r}
+Clean_funcall = function(d, exclude, func, is.rt, nsd=3){
+  colors = wes_palette(names(wes_palettes[8]),n=64,type="continuous");colors=sample(colors,length(colors))
+  grant_RTm = mean(d$RT)
+  sdm = sd(d$RT)
+  if (is.rt==1){
+    dclean = d %>% 
+      # filter(! Subnum %in% exclude) %>% 
+      # filter(FileCondi==condi) %>%
+      mutate(Stimkind = case_when(Stimkind==1 ~ "CM",
+                                  Stimkind==0 ~ "AN",
+                                  Stimkind==3 ~ "VM",
+                                  TRUE ~ "Wrong")) %>%
+      filter(Correctness==1) %>%
+      group_by(FileCondi,Subnum, Stimkind) %>% 
+      dplyr::summarise(rt_m=mean(RT),diff = rt_m-grant_RTm) %>%
+      arrange(rt_m)
+    dclean = dclean %>% 
+      ungroup()%>%
+      group_by(FileCondi, Stimkind)%>%
+      arrange(FileCondi, Stimkind, rt_m) %>%
+      mutate(order = row_number())%>%
+      ungroup()
+    # dclean = 
+    ddat = dclean %>% group_by(Stimkind) %>% dplyr::summarise(mu3 = mean(rt_m),sd3 = sd(rt_m)/sqrt(n()))
+    #%>%
+      # mutate(tf=case_when(abs(grant_RTm - rt_m) > 2*sdm ~ "T",
+                       # TRUE ~ "F"))'
+
+    mean_wt <- data.frame(Stimkind = as.factor(levels(as.factor(dclean$Stimkind))), wtupper = nsd*ddat$sd3+ddat$mu3,
+                          wtlower = ddat$mu3-nsd*ddat$sd3 )
+    
+    if(length(exclude)==0) exclude = "None"
+    p=ggplot(dclean, aes(order,func(rt_m)))+
+      geom_point(aes(color=as.factor(Subnum)),alpha=0.2)+
+      geom_text(aes(label=as.factor(Subnum),color=as.factor(Subnum)),hjust=0.4)+
+      scale_color_manual(values = colors)+
+      facet_grid(FileCondi~Stimkind)+
+      # geom_hline(aes(yintercept = wtupper),mean_wt)+
+      # geom_hline(aes(yintercept = wtlower),mean_wt)+
+      guides(color=FALSE) +
+      ggtitle(paste(" cRT","- Exclude:", exclude,"- NumOfSdAway:", nsd))
+  }
+  else{
+    dclean = d %>% 
+      # filter(! Subnum %in% exclude) %>% 
+      # filter(FileCondi==condi) %>%
+      mutate(Stimkind = case_when(Stimkind==1 ~ "CM",
+                                  Stimkind==0 ~ "AN",
+                                  Stimkind==3 ~ "VM",
+                                  TRUE ~ "Wrong")) %>%
+      group_by(FileCondi,Subnum, Stimkind) %>% 
+      dplyr::summarise(Error=1-mean(Correctness)) 
+    dclean = dclean %>% 
+      ungroup()%>%
+      group_by(FileCondi,Stimkind)%>%
+      arrange(FileCondi,Stimkind, Error) %>%
+      mutate(order = row_number())
+    
+    ddat = dclean %>% group_by(Stimkind) %>% dplyr::summarise(mu3 = mean(Error),sd3 = sd(Error)/sqrt(n()))
+    
+
+    mean_wt <- data.frame(Stimkind = as.factor(levels(as.factor(dclean$Stimkind))), wtupper = nsd*ddat$sd3+ddat$mu3,
+                          wtlower = ddat$mu3-nsd*ddat$sd3 )
+    
+    if(length(exclude)==0) exclude = "None"
+    p=ggplot(dclean, aes(order,func(Error)))+
+      geom_point(aes(color=as.factor(Subnum)),alpha=0.4)+
+      # geom_text(aes(label=paste(as.factor(Subnum),as.factor(Stimkind)),
+      #               color=as.factor(Subnum)),hjust=0.4)+
+      geom_text(aes(label=as.factor(Subnum),
+                    color=as.factor(Subnum)),hjust=0,vjust=-0.5 )+
+      scale_color_manual(values = colors)+
+      facet_grid(FileCondi~Stimkind)+
+      # geom_hline(aes(yintercept = wtupper),mean_wt)+
+      # geom_hline(aes(yintercept = wtlower),mean_wt)+
+      guides(color=FALSE)+
+      ggtitle(paste(" Error", "- Exclude:", exclude,"- NumOfSdAway:", nsd))
+  }
+  
+  return(p)
+}
+Clean_funcall(d,c(),func = identity, is.rt=0, nsd = 5)
+Clean_funcall(d,c(),func = identity, is.rt=1, nsd = 5)
+```
+
+
+
+#p.medianRT()
+
+
+```{r}
+
+p.medianRT=function(d, tit=" ", RTmethod = "median_mean",BlockFilter=2:9){
+  
+  cols <- c(`1`=1,`0`=2,`3`=3)
+  tit=paste(' ',all_subnum," ",tit)
+  if(RTmethod == "grand_median"){
+    
+    dase = d %>% filter(Block %in% BlockFilter) %>%
+      group_by(FileCondi,Correctness,  Old,Setsize, Stimkind) %>%
+      dplyr::summarize(RTm= median(RT), se =sd(RT)/sqrt(n()))
+  }else if(RTmethod == "median_mean"){
+    
+    dase = d %>% filter(Block %in% BlockFilter) %>%
+      group_by(Subnum, FileCondi,Correctness,  Old,Setsize, Stimkind) %>%
+      dplyr::summarize(RTmean= median(RT)) %>%
+      group_by(FileCondi,Correctness,  Old,Setsize, Stimkind) %>%
+      dplyr::summarize(RTm= mean(RTmean), se =sd(RTmean)/sqrt(n()))
+  }else if (RTmethod == "mean"){
+    
+    dase = d %>% filter(Block %in% BlockFilter) %>%
+      group_by(FileCondi,Correctness,  Old,Setsize, Stimkind) %>%
+      dplyr::summarize(RTm= mean(RT), se =sd(RT)/sqrt(n()))
+    
+  }else{
+    print("no prob")}#else stop("Wrong method of calculating RT input!")}
+  
+  da1se=subset(dase,Correctness==1)#;da1se
+  p=ggplot(data=da1se,aes(Setsize,RTm))+
+    geom_errorbar(aes(ymin=RTm-se, ymax=RTm+se), width=.2,
+                 position=position_dodge(.9),alpha=0.3) +
+    geom_point(aes(color=as.factor(Old),shape=as.factor(Stimkind),group=Old),size=5)+
+    geom_line(aes(color=as.factor(Old),#linetype=as.factor(FileCondi),
+                  group=interaction(Old,Stimkind)))+
+    scale_color_manual(name="Old-New",#breaks=c(1,0),
+                        labels=c(`1`="Old", `2`="New"),
+                        values=c("#F23005","#CC984D"))+
+    scale_shape_discrete(
+      name="ProbKind",labels = c(`1`="CM",`0`="AN",`3`="VM"))+
+    ggtitle(paste(RTmethod, "CorrectRT - Set Size",tit))+
+       theme_bw()+
+      theme(text=element_text(size=16))+
+      ylim(500,1100)+
+    facet_wrap(FileCondi~.,ncol=6)
+  
+  return(p)
+}
+
+```
+
+```{r}
+p.ER=function(d,tit=" ",BlockFilter=2:9){
+  tit=paste(' ',all_subnum," ",tit)
+  d0= d %>% filter(Block %in% BlockFilter) %>%
+    mutate(Old= as.factor(Old),
+           # Setsize = as.factor(Setsize),
+           Stimkind= as.factor(Stimkind))
+  da1se= d0 %>%
+    mutate(Setsze = as.numeric(Setsize)) %>%
+    group_by(FileCondi,Old,Setsize,Stimkind) %>%
+    dplyr::summarise(Error = 1-mean(Correctness), se = sd(Correctness)/sqrt(n()))
+
+  p=ggplot(data=da1se,aes(Setsize,Error))+
+    geom_errorbar(aes(ymin=(Error)-se, ymax=(Error)+se), width=.2,
+                 position=position_dodge(.9),alpha=0.5) +
+  geom_point(aes(color=as.factor(Old),shape=as.factor(Stimkind),group=Old),size=5)+
+  geom_line(aes(color=as.factor(Old),#linetype=as.factor(FileCondi),
+                group=interaction(Old,Stimkind)))+
+  scale_color_manual(name="Old-New",#breaks=c(1,0),
+                      labels=c(`1`="Old", `2`="New"),
+                      values=c("#F23005","#CC984D"))+
+  scale_shape_discrete(
+    name="ProbKind",labels = c(`1`="CM",`0`="AN",`3`="VM"))+
+  # scale_linetype_discrete(
+  #   name="Condition")+
+  ggtitle(paste("Error Rate - Set Size",tit))+
+     theme_bw()+
+    theme(text=element_text(size=16))+
+    # ylim(0,0.25)+
+  facet_wrap(FileCondi~.,ncol=6)+
+    scale_y_continuous("Probability of Error",limits=c(0,0.25))
+  return(p)
+}
+```
+
+
+# clean_plot
+```{r}
+
+dc = d %>% filter(! (FileCondi=="MIX" & Subnum %in% c(2,6,19,30)),
+                  ! (FileCondi=="MIX2" & Subnum %in% c(11,22,29,32)),#c(11,13,9,35)),
+                  ! (FileCondi=="ANpure" & Subnum %in% c(20,27,35,32)),
+                  !  (FileCondi=="CMat" & Subnum %in% c(29,3,16)),
+                  ! (FileCondi == "CMpure" & Subnum %in% c(32,35)),
+                  ! (FileCondi == "VMpure" & Subnum %in% c(31,4)))  
+p.medianRT(dc,RTmethod = "median_mean")
+# p.medianRT(dc,RTmethod = "median_mean")
+p.medianRT(d,RTmethod = "median_mean",tit="original")
+  
+p.ER(dc)
+p.ER(d,tit="original")
+getwd()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

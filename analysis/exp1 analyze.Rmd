@@ -1,0 +1,483 @@
+---
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+---
+```{r,include=FALSE}
+library(dplyr)
+library(ggplot2)
+library(lattice)
+library(plyr)
+library(Rmisc)
+library(stringr)
+library(tidyr)
+library(rstan)
+library(cowplot)
+```
+
+
+```{r setup}
+getwd()
+knitr::opts_knit$set(root.dir = "/home/shulai/Documents/exp1_data0/0")
+knitr::opts_knit$set(root.dir ="C:/Users/naszh/Google Drive (shulai@iu.edu)/IUB/Shiffrin Lab/mix_experiment/exp1_data0/0")
+
+rn=c("Block","Trial","Condition","OldNew","Setsize","Serpos","Lag",
+  "Response","Correctness","RT","WhichProbe",
+  paste("prob",seq(1,6),sep=""),"surveyq")
+# read.table("cmvman1048.txt",head=FALSE,sep="",fill = TRUE,col.names = rn)
+```
+
+# Basic
+```{r}
+subnum=63
+basen="cmvman"
+```
+
+#Functions
+##load data
+```{r}
+ld=function(basen,subnum){
+  for (i in 1:subnum){
+    if(file.exists(paste(basen,i,".txt",sep=""))){
+      # print(i)
+      if (i==1){
+        d=read.table(paste(basen,i,".txt",sep=""),
+                     head=FALSE,sep="",fill = TRUE,col.names = rn)
+        d=d %>% mutate(Subnum=i) #%>%
+      #replace_na(list(surveyq=surveyq[length(surveyq)]))
+    }    else{
+      d0=read.table(paste(basen,i,".txt",sep=""),
+                    head=FALSE,sep="",fill = TRUE,col.names = rn)
+      d0=d0 %>% mutate(Subnum=i) #%>%
+      #replace_na(list(surveyq=surveyq[length(surveyq)]))
+      d=rbind(d,d0)
+    }
+     d=d%>% select(Subnum,everything()) %>% arrange(Subnum) %>% filter(RT>0)
+  }
+    }
+  return(d)
+}
+
+```
+##plot RT
+```{r}
+plot_rtall=function(d,tit){
+  dase=summarySEwithin(data=d,measurevar = "RT",withinvars = c("Setsize","Correctness","OldNew","Condition"))
+  # print(dase)
+  da1se=subset(dase,Correctness==1)
+  p1=ggplot(data=da1se,aes(Setsize,RT))+
+  geom_point(aes(color=as.factor(OldNew),shape=as.factor(Condition),group=OldNew),size=5)+
+  geom_line(aes(color=as.factor(OldNew),linetype=as.factor(Condition),
+                group=interaction(OldNew,Condition)))+
+  scale_color_manual(name="Old-New",#breaks=c(1,0),
+                      labels=c(`1`="Old", `2`="New"),
+                      values=c("#F23005","#CC984D"))+
+  scale_shape_discrete(name="Condition",
+                     labels = c(`1`="CMpos_s",`2`="CMpos_reg",`3`="CMneg_h",`4`="CMneg_l",`5`="vm"))+
+  scale_linetype_discrete(name="Condition",
+                     labels =c(`1`="CMpos_s",`2`="CMpos_reg",`3`="CMneg_h",`4`="CMneg_l",`5`="vm"))+
+  ggtitle(paste("Mean CorrectRT - Set Size",tit))+
+     theme_light()+
+    ylim(700,1550)
+  return(p1)
+}
+ plot_rtall(d,"")
+```
+
+##plot Correct
+```{r}
+plot_error=function(d,tit){
+  da_p=summarySEwithin(data=d,measurevar = "Correctness",withinvars = c("Setsize","OldNew","Condition"))
+  # da_p
+  p1=ggplot(data=da_p,aes(Setsize,1-Correctness))+
+    geom_point(aes(color=as.factor(OldNew),shape=as.factor(Condition),group=OldNew),size=5)+
+    geom_line(aes(color=as.factor(OldNew),linetype=as.factor(Condition),
+                  group=interaction(OldNew,Condition)))+
+    scale_color_manual(name="Old-New",#breaks=c(1,0),
+                        labels=c(`1`="Old", `2`="New"),
+                        values=c("#F23005","#CC984D"))+
+    scale_shape_discrete(name="Condition",
+                       labels = c(`1`="CMpos_s",`2`="CMpos_reg",`3`="CMneg_h",`4`="CMneg_l",`5`="vm"))+
+    scale_linetype_discrete(name="Condition",
+                       labels = c(`1`="CMpos_s",`2`="CMpos_reg",`3`="CMneg_h",`4`="CMneg_l",`5`="vm"))+
+    ggtitle(paste("Error Rate- Set Size - ",tit))+
+    scale_y_continuous("Probability of Error")+
+    theme_light()+
+    ylim(0,0.3)
+  return(p1)
+  }
+```
+
+## mutate new condition
+```{r}
+creatnewc=function(dc){
+  d0=dc %>% mutate(Condition=as.numeric(Condition)) %>%
+  mutate(specondi=case_when( Condition %in% as.factor(1:4)~ Condition,
+                                  Condition==5&OldNew==1 ~ 5, #c5=vm-old
+                                  Condition==5&OldNew==2 ~ 6) ) %>%  #6~vm-new
+  mutate(specondi=as.factor(specondi))
+  return(d0)
+}
+
+```
+
+##p blockwise
+```{r}
+plot_rtblockwise = function(d,tit){
+  # d=dc
+  dp3=creatnewc(d)%>% filter(Correctness==1)
+  dp3=summarySEwithin(data=dp3, measurevar = "RT", withinvars = c("Block","Setsize","specondi"))
+
+  Condition_n=c("CMpos_s","CMpos_reg","CMneg_h","CMneg_l","vm_old","vm_new");names(Condition_n)=as.character(1:6)
+  
+  p=ggplot(dp3,aes(Block,RT))+
+    geom_point(aes(shape=Setsize,color=Setsize),size=5)+
+    geom_line(aes(linetype=Setsize,color=Setsize,
+                  group=interaction(Setsize)))+
+    ggtitle(paste("Correct RT accross blocks -"),tit)+
+    facet_wrap(specondi~.,
+               labeller = labeller(specondi=Condition_n) ,ncol=3)+
+    theme_light()+
+    theme(text = element_text(size=20))#;p
+               # labeller = label_both)
+  return(p)
+
+
+
+}
+
+plot_rtblockwise2=function(d,tit){
+    dp3=creatnewc(d) %>% filter(Correctness==1)
+    dp34=summarySEwithin(data=dp3, measurevar = "RT", withinvars =
+                        c("Block","specondi"))
+    Condition_n=c("CMpos_s","CMpos_reg","CMneg_h","CMneg_l","vm_old","vm_new");names(Condition_n)=as.character(1:6)
+  p=ggplot(dp34,aes(Block,RT))+
+    geom_point(aes(color=specondi,shape=specondi),size=5)+
+    geom_line(aes(color=specondi,
+                  group=specondi,linetype=specondi))+
+    scale_color_discrete(labels = Condition_n )+
+    scale_linetype_discrete(labels = Condition_n )+
+    scale_shape_discrete(labels = Condition_n )+
+    ggtitle(paste("Correct RT accross blocks",tit))+
+    theme_light()+
+    theme(text = element_text(size=20))
+  return(p)
+}
+
+plot_rtblockwise3=function(d,tit){
+    dp3=creatnewc(d) %>% filter(Correctness==1)
+    dp34=summarySEwithin(data=dp3, measurevar = "RT", withinvars =
+                        c("Block","specondi","Setsize"))
+    Condition_n=c("CMpos_s","CMpos_reg","CMneg_h","CMneg_l","vm_old","vm_new");names(Condition_n)=as.character(1:6)
+  p=ggplot(dp34,aes(Block,RT))+
+    geom_point(aes(color=specondi,shape=specondi),size=5)+
+    geom_line(aes(color=specondi,linetype=specondi,
+                  group=specondi))+
+    scale_color_discrete(labels = Condition_n )+
+    scale_linetype_discrete(labels = Condition_n )+
+    scale_shape_discrete(labels = Condition_n )+
+    ggtitle(paste("Correct RT accross blocks",tit))+
+    theme_light()+
+    theme(text = element_text(size=20))+
+    facet_grid(Setsize~.,labeller = label_both)
+  return(p)
+}
+```
+
+##participant wise
+```{r}
+plot_rtblockpar=function(d,tit){
+    dp3=creatnewc(dc) %>% filter(Correctness==1)
+    dp34=summarySEwithin(data=dp3, measurevar = "RT", withinvars =
+                        c("Block","specondi","Subnum"))
+    Condition_n=c("CMpos_s","CMpos_reg","CMneg_h","CMneg_l","vm_old","vm_new");names(Condition_n)=as.character(1:6)
+  p=ggplot(dp34,aes(Block,RT))+
+    geom_point(aes(color=specondi))+
+    geom_line(aes(color=specondi,
+                  group=specondi))+
+    scale_color_discrete(labels = Condition_n )+
+    ggtitle(paste("RT correct accross blocks across participant"),tit)+
+    facet_wrap(Subnum~.,ncol=6)+
+    theme_light()
+  return(p)
+}
+```
+
+#load data
+```{r}
+d=ld(basen,subnum)
+d=d%>%mutate_at(c("Setsize","OldNew","Condition"),as.factor)
+d_n8=d%>%filter(Subnum>8)
+```
+
+
+##clean data 
+```{r}
+plot(density(d$RT),xlim=c(0,5000))
+
+# d$Trial[d$RT>4000]
+# 
+# d[d$Trial<10,]
+
+dc=d%>%filter(RT<5000&RT!=0)
+a=(length(dc$Subnum)-length(d$Subnum) )
+b=length(d$Subnum)
+a/b
+```
+
+
+#Manipulation check
+```{r}
+  a=array()
+  for(i in 1:10){
+    a[i]=sum(d$WhichProbe==i)/sum(length(d$Block)) 
+  }
+a
+```
+
+
+```{r,echo=FALSE,include=FALSE}
+aggregate(data=d,Correctness~Subnum,mean)
+```
+
+# Plor rt for correct rsponse
+```{r}
+# 
+# p1=plot_rtall(d,"orignal")
+# p2=plot_rtall(dc,"CLeaned data")
+# p3=plot_rtall(filter(dc,Block>1),"block>1")
+# plot_grid(p1,p2,p3)
+# p1;p2;p3
+# 
+# 
+# plot_rtall(filter(dc,Block>1),"block>1")
+
+
+
+plot_rtall(filter(d,Block>1)," ")
+plot_rtall(filter(d,Block>1&Subnum>8)," (Exclude first 8 people that I ran)")
+# plot_rtall(filter(d,Block>2&Subnum>21),"block>2")
+```
+
+
+VM-New is weird, let's see what if block>2
+
+##frequent inference
+Want: 1-2 cmpos vs cm neg
+      1-5 cmpos vs vm pos
+      2-5 cmneg vs vm pos
+```{r}
+#make new condition variable for every conditions
+
+dcmut=creatnewc(dc) %>% filter(Correctness==1,Block>2)
+
+# Want: 1-2 cmpos vs cm neg
+#       1-5 cmpos vs vm pos
+#       2-5 cmneg vs vm pos
+TukeyHSD(data=dcmut,aov(RT~specondi,data=dcmut))
+
+```
+#model selsect
+```{r}
+dcmut=creatnewc(dc) %>% filter(Correctness==1)
+dcn=dcmut %>% mutate(condn=case_when( specondi==1 ~ "CM+spe_",
+                                  specondi==2 ~ "CM+reg_",
+                                  specondi==3 ~ "CM-h_",
+                                  specondi==4 ~ "CM-l_",
+                                  specondi==5 ~ "VM+_",
+                                  specondi==6 ~ "VM-_"))%>%
+  mutate(condn=as.factor(condn))
+```
+
+```{r}
+md=lm(data=dcn,RT~Setsize*condn*OldNew)
+md0=lm(data=dcn,RT~Setsize+condn)
+anova(md0,md)
+summary(md0)
+step(md,direction="both")
+
+
+TukeyHSD(data=dcn,aov(RT~condn+Setsize,data=dcn))
+```
+
+
+
+
+
+#plot correcness
+```{r}
+
+plot_error(d,"orignal")
+# plot_error(dc,"CLeaned data")
+plot_error(filter(dc,Block>1),"block>1")
+
+plot_error(filter(d,Block>1)," ")
+```
+##freq 
+Want: 1-2 cmpos vs cm neg\
+      1-5 cmpos vs vm pos\
+      2-5 cmneg vs vm pos\
+```{r}
+TukeyHSD(data=dcmut,aov(Correctness~specondi,data=dcmut))
+
+```
+```{r}
+
+```
+
+
+#plot RT- Blockwise
+
+```{r}
+# plot_rtblockwise(dc,"cleand")
+# plot_rtblockwise2(dc,"cleand")
+# plot_rtblockwise2(dc%>%filter(Setsize!=2),"Setsize>2")
+# plot_rtblockwise3(dc,"of different set size")
+
+plot_rtblockwise(filter(d)," ")
+plot_rtblockwise2(filter(d)," ")
+
+plot_rtblockwise(filter(d,Block>1)," ")
+plot_rtblockwise2(filter(d,Block>1)," ")
+plot_rtblockwise3(filter(d,Block>1),"of different set size")
+```
+
+```{r}
+# head(d)
+
+plot_rtblockwise(dc,"cleand")
+plot_rtblockwise2(dc,"cleand")
+plot_rtblockwise2(dc%>%filter(Setsize!=2),"Setsize>2")
+plot_rtblockwise3(dc,"of different set size")
+
+plot_rtblockwise(d,"orgid")
+plot_rtblockwise2(d,"orgid")
+plot_rtblockwise4=function(d,tit){
+      dp3=creatnewc(d) %>% filter(Correctness==1)
+    dp34=summarySEwithin(data=dp3, measurevar = "RT", withinvars =
+                        c("Block","specondi","Setsize"))
+    Condition_n=c("CMpos_s","CMpos_reg","CMneg_h","CMneg_l","vm_old","vm_new");names(Condition_n)=as.character(1:6)
+  p=ggplot(dp34,aes(Block,RT))+
+    geom_point(aes(color=specondi,shape=specondi),size=5)+
+    geom_line(aes(color=specondi,linetype=specondi,
+                  group=interaction(Block,Setsize)))+
+    scale_color_discrete(labels = Condition_n )+
+    scale_linetype_discrete(labels = Condition_n )+
+    scale_shape_discrete(labels = Condition_n )+
+    ggtitle(paste("Correct RT accross blocks",tit))+
+    theme_light()+
+    theme(text = element_text(size=20))+
+    facet_grid(Setsize~Block,labeller = label_both)
+  return(p)
+}
+# plot_rtblockwise4(dc,"of different set size,blocks")
+```
+
+
+#p-participant wise
+```{r}
+plot_rtblockpar(filter(d,Block>1)," ")
+```
+
+#FIT MODLE
+r-stan give it a try
+```{r}
+model.script0="
+data{
+ int lag[N];
+}
+parameters{
+
+}
+
+model{
+    for(j in 1:M){
+      m[j]=lag[]
+    }
+}
+
+
+
+"
+  
+  
+```
+
+
+#fill in surveyq
+```{r}
+sq_arr=array()
+for(i in 1:subnum){
+  d_slice=filter(d,Subnum==i)
+  t_length=length(d_slice$Subnum)
+  sq_arr=c(sq_arr,rep(d_slice$surveyq[t_length],t_length))
+}
+# sq_arr=
+d_f=d%>%mutate(
+  surveyq=sq_arr[-1]
+)
+
+# i=1
+# d_slice=filter(d,Subnum==i)
+# t_length=length(d_slice$Subnum);t_length
+# d_slice$surveyq[t_length]
+```
+
+```{r}
+d_f%>%filter(surveyq==1) %>%summary()
+```
+
+```{r}
+
+    
+d0=filter(d_f,Subnum>16)
+# summary(as.factor(d0$surveyq))
+p1=plot_rtall(filter(d0,surveyq==1),"(Noticed)")
+# p2=plot_rtall(filter(d0,surveyq==2),"surveyq=yes_later")
+p3=plot_rtall(filter(d0,surveyq==3),"(Didn't Notice)")
+plot_grid(p1,p3)
+
+
+p1=plot_error(filter(d0,surveyq==1),"(Noticed)")
+# p2=plot_rtall(filter(d0,surveyq==2),"surveyq=yes_later")
+p3=plot_error(filter(d0,surveyq==3),"(Didn't Notice)")
+plot_grid(p1,p3)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

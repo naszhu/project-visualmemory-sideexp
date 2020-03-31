@@ -1,0 +1,290 @@
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(lattice)
+library(plyr)
+library(Rmisc)
+library(stringr)
+```
+
+```{r setup}
+knitr::opts_knit$set(root.dir = "C:/E/IUB/Lab/Project1/mix_experiment/data")
+rn=c("Block","Trial","Condition","OldNew","Setsize","Serpos","Lag",
+  "Response","Correctness","RT","WhichProbe",
+  paste("prob",seq(1,6),sep=""))
+
+```
+
+# Load any data
+```{r }
+# getwd()
+d00=read.table("cmvman9999991.txt",head=FALSE,sep="",fill = TRUE,col.names = rn)
+d=d00
+
+```
+
+
+#Load My dat
+```{r}
+
+d00=read.table("t1.txt",head=FALSE,sep="",fill = TRUE,col.names = rn)
+d00$Condition[d00$OldNew==2&d00$WhichProbe<7]=2 #regular cmf
+d00$Condition[d00$OldNew==2&d00$WhichProbe==4]=1 #special cmf
+d00$Condition[d00$OldNew==2&d00$WhichProbe>6]=3
+d00$OldNew[d00$WhichProbe==11]=1 #choose all special item to be 11
+
+find11ar=which(d00[,12:17] ==11,arr.ind=T) %>% data.frame()
+d00$Serpos[find11ar$row]= (find11ar$col)
+
+d00$Lag[d00$WhichProbe==11]= d00$Setsize[d00$WhichProbe==11]-d00$Serpos[d00$WhichProbe==11]+1
+d00$Condition[d00$OldNew==1&d00$WhichProbe<4]=2 #regular cmt
+
+d00$Condition[d00$WhichProbe==11]=1 #regular cmt
+
+
+
+d=d00
+d
+
+#test below:
+sum(d$Condition==1&d$OldNew==1)
+sum(d$WhichProbe==11)
+d00$Condition[d00$WhichProbe==11] #if all 1
+d00$OldNew[d00$WhichProbe==11] #if all 1
+
+```
+
+#mani popcheck
+```{r}
+
+d_ncms=subset(d00,WhichProbe!=11)
+sum(d_ncms$OldNew==1)/sum(d_ncms$OldNew==2)
+
+
+
+p_eachi=array()
+for(i in 1:11){
+  p_eachi[i]=sum(d$WhichProbe==i)/length(d$Block)
+}
+
+names(p_eachi)=as.character(1:11);
+p_eachi
+
+mean(p_eachi)
+```
+
+
+
+
+1 is old, 2 is new
+```{r}
+
+summary(d$Condition)
+#test if manupulation works:
+sum(d00$WhichProbe==11)/length(d00$OldNew)
+
+d$Correctness[d$Condition==1&d$OldNew==2]
+```
+
+```{r}
+da=aggregate(data=d,RT~Setsize+Correctness+OldNew+Condition,mean)
+dase=summarySEwithin(data=d,measurevar = "RT",withinvars = c("Setsize","Correctness","OldNew","Condition"))
+
+da1se=subset(dase,Correctness==1)
+da1=subset(da,Correctness==1)
+
+da1se;da1
+```
+
+```{r}
+ggplot(data=da1se,aes(Setsize,RT))+
+  geom_point(aes(color=as.factor(OldNew),shape=as.factor(Condition)))+
+  geom_line(aes(color=as.factor(OldNew),linetype=as.factor(Condition)))+
+  scale_color_manual(name="Old-New",#breaks=c(1,0),
+                      labels=c(`1`="Old", `2`="New"),
+                      values=c("#F23005","#FFBE73"))+
+  scale_shape_discrete(name="Condition",
+                     labels = c(`1`="Special item",`2`="CM",`3`="VM"))+
+  scale_linetype_discrete(name="Condition",
+                     labels = c(`1`="Special item",`2`="CM",`3`="VM"))+
+  geom_errorbar(aes(ymin=RT-se, ymax=RT+se), width=.2,
+                 position=position_dodge(0.05))
+# +
+#   scale
+```
+
+
+#Plot 1
+```{r}
+da=aggregate(data=d,RT~Setsize+Correctness+OldNew+Condition,mean)
+dase=summarySEwithin(data=d,measurevar = "RT",withinvars = c("Setsize","Correctness","OldNew","Condition"))
+
+da1se=subset(dase,Correctness==1)
+da1=subset(da,Correctness==1)
+
+da1se;da1
+
+p1=ggplot(data=da1se,aes(Setsize,RT))+
+  geom_point(aes(color=as.factor(OldNew),shape=as.factor(Condition),group=OldNew),size=5)+
+  geom_line(aes(color=as.factor(OldNew),linetype=as.factor(Condition),
+                group=interaction(OldNew,Condition)))+
+  scale_color_manual(name="Old-New",#breaks=c(1,0),
+                      labels=c(`1`="Old", `2`="New"),
+                      values=c("#F23005","#FFBE73"))+
+  scale_shape_discrete(name="Condition",
+                     labels = c(`1`="Special item",`2`="CM",`3`="VM"))+
+  scale_linetype_discrete(name="Condition",
+                     labels = c(`1`="Special item",`2`="CM",`3`="VM"))+
+  ggtitle("Mean CorrectRT - Set Size")
+
+# p1+
+#   geom_errorbar(aes(ymin=RT-se, ymax=RT+se), #width=.2,
+#                  position=position_dodge(0.05),alpha=0.2)
+p1
+```
+
+#Plot 2
+
+```{r}
+da_p=summarySEwithin(data=d,measurevar = "Correctness",withinvars = c("Setsize","OldNew","Condition"))
+# da_p
+p1=ggplot(data=da_p,aes(Setsize,1-Correctness))+
+  geom_point(aes(color=as.factor(OldNew),shape=as.factor(Condition),group=OldNew),size=5)+
+  geom_line(aes(color=as.factor(OldNew),linetype=as.factor(Condition),
+                group=interaction(OldNew,Condition)))+
+  scale_color_manual(name="Old-New",#breaks=c(1,0),
+                      labels=c(`1`="Old", `2`="New"),
+                      values=c("#F23005","#FFBE73"))+
+  scale_shape_discrete(name="Condition",
+                     labels = c(`1`="Special item",`2`="CM",`3`="VM"))+
+  scale_linetype_discrete(name="Condition",
+                     labels = c(`1`="Special item",`2`="CM",`3`="VM"))+
+  ggtitle("Error Rate- Set Size")+
+  scale_y_continuous("Probability of Error")
+p1
+```
+
+
+#check Manipulation
+```{r}
+check_manip=c(
+  cmold_spe=(sum(d$Condition==1&d$OldNew==1))/length(d$OldNew), # CM special-old,
+  cmold_Std=(sum(d$Condition==2&d$OldNew==1))/sum(d$OldNew==1), # CM standard-old
+  cmnew_spe=(sum(d$Condition==1&d$OldNew==2))/sum(d$OldNew==1), # CM New
+  cmnew_std=(sum(d$Condition==2&d$OldNew==2))/sum(d$OldNew==1),
+  VM_old=(sum(d$Condition==3&d$OldNew==1))/sum(d$OldNew==1),
+  vm_new=(sum(d$Condition==3&d$OldNew==2))/sum(d$OldNew==1)
+)
+barplot(check_manip,ylim=c(0,1),main="Summarized proportion for appearence of each kind of test prob")
+abline( h = seq(0,1,by=0.1), lty = 2)
+
+
+
+```
+
+
+# RT Blockwise
+```{r}
+head(d)
+d=d%>%mutate(Setsize=factor(Setsize))
+dp3=summarySEwithin(data=d, measurevar = "RT", withinvars = c("Block","Setsize","Condition","OldNew"))
+
+OldNew_n=c("Old/Taraget","New/Foil");names(OldNew_n)=c("1","2")
+Condition_n=paste("Condition",c("Special","CM","VM"));names(Condition_n)=c("1","2","3")
+
+ggplot(dp3,aes(Block,RT))+
+  geom_point(aes(color=Setsize))+
+  geom_line(aes(color=Setsize,group=interaction(Setsize)))+
+  ggtitle("Special-CM RT accross blocks - Separate conditions and old/new")+
+  facet_grid(OldNew~Condition,
+             labeller = labeller(OldNew=OldNew_n,Condition=Condition_n) )
+             # labeller = label_both)
+
+dp34=summarySEwithin(data=d, measurevar = "RT", withinvars =
+                      c("Block","Condition","OldNew"))
+ggplot(dp34,aes(Block,RT))+
+  geom_point(aes(color=interaction(Condition,OldNew)))+
+  geom_line(aes(color=interaction(Condition,OldNew),
+                group=interaction(Condition,OldNew)))+
+  ggtitle("Special-CM RT accross blocks")
+
+
+
+
+  # guides(colour = guide_legend(override.aes = list(color=c(
+    # "1.1"="CM-old-spec","2.1"="CM-old-reg","3.1"="VM-old",
+    # "1.2"="CM-New-spec","2.2"="CM-New-reg","2.3"="VM-New"))))
+# +
+#   scale_color_discrete(lables=c(
+#     "1.1"="CM-old-spec","2.1"="CM-old-reg","3.1"="VM-old",
+#     "1.2"="CM-New-spec","2.2"="CM-New-reg","2.3"="VM-New"))
+```
+# Check CM
+```{r}
+# head(d)
+# dp30=d[str_detect(d$WhichProbe,"[1-3]"),]
+# library(dplyr)
+# dp30= d %>% dplyr::filter(WhichProbe %in% c(1:3,11))
+dp30= d
+# dp30= d%>% mutate(
+#   ProbeKind=case_when( WhichProbe %in% 1:3 ~ "CM-Target-Regular",
+#                        WhichProbe %in% 4:6 ~ "CM-Foil",
+#                        WhichProbe %in% 7:10 ~ "VM",
+#                        WhichProbe==11 ~ "CM-Tartet-Special")
+# )
+
+
+dp300=summarySEwithin(dp30,measurevar = "RT",withinvars =
+                        c("WhichProbe","Setsize","ProbeKind"))
+dp300=dp300%>%mutate(WhichProbe=factor(WhichProbe))
+
+lbs=c(paste("CM-Foil",1:3,sep=""),paste("CM-Target",1:3,sep=""),
+      paste("VM",1:4,sep=""),"CM-Target-Special")
+names(lbs)=as.character(1:11)
+
+override.linetype <- c(rep(1,3),rep(2,3),rep(3,4),4)
+names(override.linetype)=rep(
+  c("CM-Target-Regular","CM-Foil","VM","CM-Tartet-Special"),c(3,3,4,1))
+ggplot(dp300,aes(Setsize,RT))+
+  geom_point(aes(color=WhichProbe))+
+  geom_line(aes(color=WhichProbe,
+                group=WhichProbe,linetype=ProbeKind))+
+  facet_grid(.~ProbeKind)+
+  guides(colour = guide_legend(override.aes = list(linetype= override.linetype)))+
+  scale_linetype_manual(guide=FALSE,values=override.linetype)+
+  # scale_linetype(guide=FALSE)+
+  scale_color_discrete(labels=lbs)+
+  ggtitle("RT of different Probe type")+
+  theme_gray()
+
+```
+
+
+
+
+
+
+
+```{r}
+write.csv(d,file="d.csv")
+?table
+table(1,2)
+?cut
+?quantile
+quantile(1:10,seq(0,1,0.1))
+cut(1:10,quantile(1:10,seq(0,1,0.1)))%>%table()
+cut()
+```
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,173 @@
+
+```{r}
+install.packages("combinat")
+library(gtools)
+```
+
+#2
+```{r}
+m=1/11
+a=0.75*(1/choose(11,2))
+b=0.25*(1/11)
+c=0.25*(1/11)
+d=0.75*(1/choose(11,2))
+
+ta=0.25*0.9*0.9
+
+tb=a*0.5*0.5*10+
+  c*0.9*0.1
+
+tvp=a*0.5^2+
+  b*0.9*0.1+
+  d*0.5^2*9
+
+tvn=a*9*0.1*0.5+
+  b*9*0.1*0.1+
+  c*(1/11)*0.1+
+  d*36*(1/9)*0.5
+
+tc=a*(1/10)*10*0.5+
+  b*(1/10)*10*0.1+
+  c*(1/11)*0.1+
+  d*(1/9)*45*0.5
+
+ta+tb+(tvp+tvn)*10+tc
+
+ss2=c(ta,tb,tvp,tvn,tc)
+```
+
+```{r}
+a=0.75*(1/55)
+b=0.25*m
+c=0.25*m
+d=0.75*(1/55)
+
+a*10+b*10+c+d*45
+```
+
+```{r}
+x=(1/11)*0.75
+m=1/11
+a=(0.75*m)^2*2
+b=(m*0.75)*0.25*2
+c=0.25*(m*0.75)*2
+d=(m*0.75)^2
+
+ta=0.25*0.9*0.9
+
+tb=x*0.5*0.5*10+
+  x*0.9*0.1
+
+tvp=x*0.5^2+
+  x*0.9*0.1+
+  x*0.5^2*9
+
+tvn=x*9*0.1*0.5+
+  x*9*0.1*0.1+
+  x*(1/11)*0.1+
+  x*36*(1/9)*0.5
+
+tc=x*(1/10)*10*0.5+
+  x*(1/10)*10*0.1+
+  x*(1/11)*0.1+
+  x*(1/9)*45*0.5
+
+ta+tb+(tvp+tvn)*10+tc
+ss2=data.frame(ta,tb,(tvp+tvn),tc)
+```
+#4
+
+
+```{r}
+ss=4
+a=0.75*(1/choose(11,4))
+b=0.25*(1/choose(11,3))
+c=0.25*(1/choose(11,3))
+d=0.75*(1/choose(11,4))
+
+ta=0.25*0.9*0.9
+
+tb=c*0.9*((1-0.9)/3)*choose(10,2)+
+  a*0.5*(1/4)*choose(10,3)
+
+tvp=c*0.9*((1-0.9)/3)*choose(9,1)+
+  b*0.9*((1-0.9)/3)*choose(9,2)+
+  a*0.5*(1/ss)*choose(9,2)+
+  d*0.5*(1/ss)*choose(9,3)
+
+tvn=a*0.5*(1/8)*choose(9,3)+
+  d*0.5*(1/7)*choose(9,4)+
+  c*0.1*(1/9)*choose(9,2)+
+  b*0.1*(1/8)*choose(9,3)
+
+tc=a*0.5*(1/8)*choose(10,3)+
+  d*0.5*(1/7)*choose(10,4)+
+  c*0.1*(1/9)*choose(10,2)+
+  b*0.1*(1/8)*choose(10,3)
+
+  ta+tb+(tvp+tvn)*10+tc
+  
+  ss4=c(ta,tb,tvp,tvn,tc)
+```
+```{r}
+(0.25*choose(10,4)/choose(11,5))+(
+  0.75*choose(10,5)/choose(11,6)
+)
+
+0.25*(1/11+9/11)+0.75*(choose(9,1)/choose(11,2)+choose(9,2)/choose(11,2))
+
+0.25*(choose(9,2)/choose(11,3)+choose(9,3)/choose(11,3))+
+  0.75*(choose(9,3)/choose(11,4)+choose(9,4)/choose(11,4))
+```
+
+#6
+```{r}
+ss=6;vm=10
+a=0.75*(1/choose(11,ss))
+b=0.25*(1/choose(11,ss-1))
+c=0.25*(1/choose(11,ss-1))
+d=0.75*(1/choose(11,ss))
+
+ta=0.25*0.9*0.9
+
+tb=c*0.9*((1-0.9)/(ss-1))*choose(10,ss-2)+
+  a*0.5*(1/ss)*choose(10,ss-1)
+
+tvp=c*0.9*((1-0.9)/(ss-1))*choose(9,ss-3)+
+  b*0.9*((1-0.9)/(ss-1))*choose(9,ss-2)+
+  a*0.5*(1/ss)*choose(9,ss-2)+
+  d*0.5*(1/ss)*choose(9,ss-1)
+
+tvn=a*0.5*(1/(vm-(ss-1)+1))*choose(9,ss-1)+
+  d*0.5*(1/(vm-(ss)+1))*choose(9,ss)+
+  c*0.1*(1/(vm-(ss-2)+1))*choose(9,ss-2)+
+  b*0.1*(1/(vm-(ss-1)+1))*choose(9,ss-1)
+
+tc=a*0.5*(1/(vm-(ss-1)+1))*choose(10,ss-1)+
+  d*0.5*(1/(vm-(ss)+1))*choose(10,ss)+
+  c*0.1*(1/(vm-(ss-2)+1))*choose(10,ss-2)+
+  b*0.1*(1/(vm-(ss-1)+1))*choose(10,ss-1)
+
+  ta+tb+(tvp+tvn)*10+tc
+  
+  ss6=c(ta,tb,tvp,tvn,tc)
+```
+
+```{r}
+d=rbind(ss2,ss4,ss6) %>% data.frame()
+colnames(d)=c("P(test a)","P(test b)","P(test VM+)","P(test VM-)","P(test C)")
+
+d
+```
+
+
+
+
+
+
+
+
+
+
+
+

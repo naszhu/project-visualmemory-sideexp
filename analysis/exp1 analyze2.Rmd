@@ -1,0 +1,127 @@
+
+```{r,include=FALSE}
+library(dplyr)
+library(ggplot2)
+library(lattice)
+library(plyr)
+library(Rmisc)
+library(stringr)
+library(tidyr)
+library(rstan)
+library(cowplot)
+```
+
+
+```{r setup}
+getwd()
+knitr::opts_knit$set(root.dir = "/home/shulai/Documents/exp1_data0/0")
+knitr::opts_knit$set(root.dir ="C:/Users/naszh/Google Drive (shulai@iu.edu)/IUB/Shiffrin Lab/mix_experiment/exp1_data0/0")
+
+rn=c("Block","Trial","Condition","OldNew","Setsize","Serpos","Lag",
+  "Response","Correctness","RT","WhichProbe",
+  paste("prob",seq(1,6),sep=""),"surveyq")
+# read.table("cmvman1048.txt",head=FALSE,sep="",fill = TRUE,col.names = rn)
+```
+
+```{r}
+subnum=63
+basen="cmvman"
+# basen2="cm"
+file.exists(paste(basen,i,".txt",sep=""))
+```
+
+
+##load data
+```{r}
+ld=function(basen,subnum){
+  for (i in 1:subnum){
+    if(file.exists(paste(basen,i,".txt",sep=""))){
+      # print(i)
+      if (i==1){
+        d=read.table(paste(basen,i,".txt",sep=""),
+                     head=FALSE,sep="",fill = TRUE,col.names = rn)
+        d=d %>% mutate(Subnum=i) #%>%
+      #replace_na(list(surveyq=surveyq[length(surveyq)]))
+    }    else{
+      d0=read.table(paste(basen,i,".txt",sep=""),
+                    head=FALSE,sep="",fill = TRUE,col.names = rn)
+      d0=d0 %>% mutate(Subnum=i) #%>%
+      #replace_na(list(surveyq=surveyq[length(surveyq)]))
+      d=rbind(d,d0)
+    }
+     d=d%>% select(Subnum,everything()) %>% arrange(Subnum) %>% filter(RT>0)
+  }
+    }
+  return(d)
+}
+
+```
+
+```{r}
+ld(basen,subnum)
+```
+
+
+
+##plot RT
+```{r}
+plot_rtall=function(d,tit){
+  dase=summarySEwithin(data=d,measurevar = "RT",withinvars = c("Setsize","Correctness","OldNew","Condition"))
+  # print(dase)
+  da1se=subset(dase,Correctness==1)
+  p1=ggplot(data=da1se,aes(Setsize,RT))+
+  geom_point(aes(color=as.factor(OldNew),shape=as.factor(Condition),group=OldNew),size=5)+
+  geom_line(aes(color=as.factor(OldNew),linetype=as.factor(Condition),
+                group=interaction(OldNew,Condition)))+
+  scale_color_manual(name="Old-New",#breaks=c(1,0),
+                      labels=c(`1`="Old", `2`="New"),
+                      values=c("#F23005","#FFBE73"))+
+  scale_shape_discrete(name="Condition",
+                     labels = c(`1`="CMpos_s",`2`="CMpos_reg",`3`="CMneg_h",`4`="CMneg_l",`5`="vm"))+
+  scale_linetype_discrete(name="Condition",
+                     labels =c(`1`="CMpos_s",`2`="CMpos_reg",`3`="CMneg_h",`4`="CMneg_l",`5`="vm"))+
+  ggtitle(paste("Mean CorrectRT - Set Size",tit))+
+    theme_gray()
+  return(p1)
+}
+
+```
+
+
+
+#load data
+```{r}
+d=ld(basen,subnum)
+d=d%>%mutate_at(c("Setsize","OldNew","Condition"),as.factor)
+d=d%>%filter(Subnum>8)
+```
+
+
+##clean data 
+```{r}
+plot(density(d$RT),xlim=c(0,5000))
+
+# d$Trial[d$RT>4000]
+# 
+# d[d$Trial<10,]
+
+dc=d%>%filter(RT<5000&RT!=0)
+(length(dc$Subnum)-length(d$Subnum) )
+length(d$Subnum)
+```
+
+
+
+```{r}
+p1=plot_rtall(d,"orignal")
+p2=plot_rtall(dc,"CLeaned data")
+p3=plot_rtall(filter(dc,Block>1),"block>1")
+# plot_grid(p1,p2,p3)
+p1;p2;p3
+
+
+plot_rtall(filter(dc,Block>1),"block>1")
+plot_rtall(filter(dc,Block>2),"block>2")
+```
+
+

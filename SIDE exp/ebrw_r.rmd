@@ -1,0 +1,117 @@
+---
+title: "EBRW_r"
+author: "Lea Lai"
+date: "October 30, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir ="C:/Users/naszh/Google Drive (shulai@iu.edu)/IUB/Shiffrin Lab/mix_experiment/SIDE exp/sidedata")
+```
+
+#library
+```{r}
+library(dplyr)
+```
+
+```{r}
+d = read.csv("Alldata.csv")
+df=d%>%mutate(Oldnew = case_when(Old==1 ~ "old",
+                                   Old==2 ~ "new",
+                                   TRUE ~ "wrong"),
+                Probtype = case_when(Stimkind == 1 ~ "CM",
+                                     Stimkind == 0 ~ "AM",
+                                     Stimkind == 3 ~ "VM",
+                                     TRUE ~ "wrong"),
+                Error = 1-Correctness) %>%
+  filter(RT<2000) 
+df_err = df %>%
+  group_by(Oldnew,Setsize,Probtype,Lag,FileCondi)%>%
+  summarise(Error_mean = mean(Error))
+df_crt = df %>%
+  filter(Error==0)%>%
+  group_by(Oldnew,Setsize,Probtype, Lag,FileCondi)%>%
+  summarise(RT_mean = mean(RT))
+```
+```{r}
+ddddd=df_crt%>%filter(FileCondi=="MIX")
+ddddd
+length(ddddd$Oldnew)
+```
+
+# Assign parameter
+```{r}
+alpha = 0.2
+beta = 0.2
+s=0.1
+c=0.39
+B_old = 1.91
+B_new = -2
+t0=700
+kappa = 37
+LTM=list()
+LTM["CMold_iold"] = 0.2
+LTM["ANold_iold"] = 0.2
+LTM["CMnew_inew"] = 0.2
+LTM["ANnew_inew"] = 0.2
+
+```
+
+# calcA
+```{r}
+calcA = function(dff, name){
+  
+  dnow = dff %>% filter(FileCondi == name)
+  print(dnow)
+  a = array(dim=c(length(dnow$FileCondi),8))
+  
+  m=array()
+  for (j in 1:8){
+    m[j]=j^(-beta)+alpha
+  }
+  
+  for(j in 1:8){
+   
+    a[dnow$Lag!=j ,j] = m[j] * s
+    a[dnow$Lag==j ,j] = m[j]
+    
+  }
+  
+  for(i in c(2,4,8)){
+    a[dnow$Setsize==i,i:8] = 0 
+  }
+  A = rowSums(a)
+  
+  return(A)
+}
+
+A = calcA(df_crt,"MIX")
+s
+```
+
+
+```{r}
+length(A)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

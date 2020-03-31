@@ -1,0 +1,12 @@
+'On each trial of this experiment ';
+' you will be presented with a study list of 2;4 or 8 pictures.';
+'Following the study list, you will be presented with a test picture.';
+'If the test picture was a member of the study list,';
+' press either F or J key depending on the side of the presentation. Left is F; right is J';
+'If the test picture was not a member of the study list,';' press the other key';
+'After you make your response, the computer will tell you if';
+' you were correct or incorrect.';
+'Please always rest your fingers on the F and J keys';
+' and try to respond as quickly as you can without making errors.';
+'The experiment has 9 blocks of trials with 25 trials in each block.';
+'Please press SPACE to begin';

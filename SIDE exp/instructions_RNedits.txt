@@ -1,0 +1,34 @@
+'On each trial of this experiment ';
+' you will be presented with a study list of 2, 4 or 8 pictures.';
+
+'The study list will either be presented either on the left side of the screen';
+  'or on the right side of the screen.';
+
+'Following the study list, you will be presented with a test picture and';
+  'will be asked to judge if the test picture was OLD (on the study list)';
+    'or NEW (not on the study list).';
+
+'You will make your responses by pressing either the F key (LEFT) or the';
+   'J key (RIGHT).';
+
+'If the test picture was OLD, then press the key on the SAME side as the study list.';
+'If the test picture was NEW, then press the key on the OPPOSITE side of the study list.';
+
+'For example, if the study list was presented on the LEFT side of the screen, and the';
+  'test picture was OLD, then press the LEFT key (F).   If the test picture was NEW,';
+   'then press the RIGHT key (J).';
+
+'OLD = press key on SAME side as study list,   NEW = press key on OPPOSITE side.';
+
+'After a little bit of practice, you should get used to the procedure';
+   'for making your old and new responses.';
+
+'After you make your response, the computer will tell you if';
+' you were correct or incorrect.';
+
+'Please always rest your fingers on the F and J keys';
+' and try to respond as quickly as you can without making errors.';
+
+'The experiment has 9 blocks of trials with 25 trials in each block.';
+'Please press SPACE to begin';
+

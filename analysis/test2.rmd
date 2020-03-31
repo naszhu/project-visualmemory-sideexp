@@ -1,0 +1,93 @@
+```{r}
+library(dplyr)
+library(ggplot2)
+library(lattice)
+library(plyr)
+library(Rmisc)
+library(stringr)
+```
+
+```{r setup}
+knitr::opts_knit$set(root.dir = "C:/E/IUB/Shiffrin Lab/mix_experiment/data2")
+rn=c("Block","Trial","Condition","OldNew","Setsize","Serpos","Lag",
+  "Response","Correctness","RT","WhichProbe",
+  paste("prob",seq(1,6),sep=""))
+# read.table("cmvman1048.txt",head=FALSE,sep="",fill = TRUE,col.names = rn)
+```
+
+# Load any data
+```{r }
+# getwd()
+d00=read.table("cmvman1048.txt",head=FALSE,sep="",fill = TRUE,col.names = rn)
+d11=read.table("cmvman800.txt",head=FALSE,sep="",fill = TRUE,col.names = rn)
+d=d00
+
+head(d)
+```
+
+
+#Manipulation check
+```{r}
+mancheck=function(num){
+  d=read.table(paste(paste("cmvman",num,sep=""),".txt",sep=""),
+                  head=FALSE,sep="",fill = TRUE,col.names = rn)
+  a=array()
+  # d=d11 
+  for(i in 1:10){
+    a[i]=sum(d$WhichProbe==i)/sum(length(d$Block)) 
+  }
+  # print(a)
+  return(a)
+}
+
+
+
+```
+
+```{r}
+a=mancheck(847)
+b=mancheck(850)
+c=mancheck(853)
+d=mancheck(855)
+e=mancheck(901)
+f=mancheck(901)
+g=mancheck(904)
+h=mancheck(905)
+i=mancheck(823823)
+dd=(a+b+c+d+e+f+g+h+i)/8
+
+names(dd)=c("Spe cm+","Reg cm+","high cm-","low cm-",paste("vm",1:6,sep=""))
+dd
+a;b;c;d;e;f;g;h;i
+sum(a)
+dd=data.frame(a,b,d,c,d,e,f,g,h)
+
+sum((a+b+c+d+e+f+g+h)/7)
+
+
+mancheck(823823)
+
+mancheck(1041)
+```
+
+
+```{r}
+write.csv(d,file="d.csv")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
